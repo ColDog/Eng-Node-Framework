@@ -1,8 +1,11 @@
-const App = require('engine');
+const App = require('./engine');
 
-App.useBefore(function(req, res, next){
-  res.hello = 'hello person';
-  next()
+App.router.add({
+  '/': function(req, res, next) {
+    res.write('hello world');
+    console.log(req);
+    next()
+  }
 });
 
-App.listen(8000);
+App.listen(3000);

@@ -1,45 +1,6 @@
-user = function(data) {
-  // if initialized with an argument, set the localstorage elements
-  if (data) {
-    localStorage.setItem('fabtoken', data.token);
-    localStorage.setItem('fabemail', data.user.email);
-    localStorage.setItem('fabname', data.user.name);
-    localStorage.setItem('fabid', data.user.id);
-    localStorage.setItem('fabexpires', data.expiry)
-  }
-
-  var expires = localStorage.getItem('fabexpires');
-  var valid = Math.floor(expires) > Math.floor(new Date() / 1000);
-  var token = localStorage.getItem('fabtoken');
-  return {
-
-    token:    token,
-    email:    localStorage.getItem('fabemail'),
-    name:     localStorage.getItem('fabname'),
-    id:      localStorage.getItem('fabid'),
-    expires:  expires,
-    valid:    valid,
-    loggedIn: valid && token,
-
-    // redirect if not authenticated
-    authenticate: function(nextState, transition) {
-      if (!valid && token) {
-        transition.to('/login')
-      }
-    },
-
-    // logout a user by removing credentials
-    logout: function() {
-      localStorage.removeItem('fabtoken');
-      localStorage.removeItem('fabemail');
-      localStorage.removeItem('fabname');
-      localStorage.removeItem('fabexpires')
-    }
-  }
-};
-socket = {};
-var SOCKET_URL = (SOCKET_URL || 'ws://localhost:8000');
-socket.ws = new WebSocket(SOCKET_URL);
+var socket = {};
+socket.url = (socket.url || 'ws://localhost:8000');
+socket.ws = new WebSocket(socket.url);
 
 socket.callbacks = {};
 socket.channels = {};
@@ -84,65 +45,87 @@ socket.ws.onopen = function(evt) {
   socket.onconnection(evt)
 };
 
-function Resource(opts) {
+var post = function(url, params) {
+  return new Promise(function(resolve, reject){
+    var xhr;
+
+    if(typeof XMLHttpRequest !== 'undefined') xhr = new XMLHttpRequest();
+    else {
+      var versions = [
+        "MSXML2.XmlHttp.5.0",
+        "MSXML2.XmlHttp.4.0",
+        "MSXML2.XmlHttp.3.0",
+        "MSXML2.XmlHttp.2.0",
+        "Microsoft.XmlHttp"
+      ];
+
+      for(var i = 0, len = versions.length; i < len; i++) {
+        try { xhr = new ActiveXObject(versions[i]); break; }
+        catch(e){}
+      }
+    }
+
+    xhr.onreadystatechange = ensureReadiness;
+    function ensureReadiness() {
+      if(xhr.readyState < 4) { reject(xhr) }
+      if(xhr.status !== 200) { reject(xhr) }
+      if(xhr.readyState === 4) { resolve(xhr) }
+    }
+
+    xhr.open('POST', url, true);
+    xhr.send(JSON.stringify(params));
+  })
+};
+
+var Resource = function(opts) {
+  if (!opts || !opts.name) { throw 'Resource definition requires a `name` attribute, ie: new Resource({name: "HomeController"})' }
   this.name       = opts['name'];                // controller name to be used on the server
-  this.updatesTo  = (opts['updatesTo'] || {});   // methods to be called when new data is recieved for an action
-  this.errorsTo   = (opts['errorsTo']  || {});   // methods to be called when there is an error
   this.queries    = (opts['queries'] || {});     // a cache of queries called when the server says data has been updated
   this.mode       = (opts['mode'] || 'socket');  // mode of transportation 'http' or 'socket'.
   this.path       = opts['path'];                // path prefix for restful resourced
+  this.before     = opts['before'];
+  this.after      = opts['after'];
 
   this.fetch = function(opts) {
-    var self = this;
+    var self        = this;
+    var act         = (opts['action'] || '');
+    var par         = (opts['params'] || {});
+    var cache       = (opts['cache'] || false);
+    var controller  = (opts['controller'] || self.name);
+    var route       = (opts['route'] || '/');
+    var mode        = (opts['mode'] || self.mode);
+
+
     console.log('this', this);
     return new Promise(function (resolve, reject) {
-      var act = (opts['action'] || '');
-      var par = (opts['params'] || {});
-      var cache = (opts['cache'] || false);
-      var token = (opts['token'] || user().token);
-      var controller = (opts['controller'] || self.name);
-      var route = (opts['route'] || '/');
-      var mode = (opts['mode'] || self.mode);
-      console.log(self);
-      if (cache) { self.queries[act] = par } // if is a reader request, cache the query
+      try {
+        if (cache) { self.queries[act] = par } // if is a reader request, cache the query
+        var req = {controller: controller, action: act, params: par};
+        if (typeof self.before === 'function') { self.before(req) }
 
-      if (mode === 'socket') {
-        socket.request({
-            controller: controller, action: act, params: par, token: token
-          }, function (data) {
-            if (!data.authenticated) {
-              user().logout()
-            }
-            if (data.user) {
-              user(data.user)
-            }
-            if (data.error) {
-              reject(data);
-              throw data.errorMessage
-            }
-            if (typeof self.updatesTo[act] === 'function') {
-              self.updatesTo[act](data)
-            }
-            resolve(data)
+        if (mode === 'socket') {
+
+          socket.request(req, function (data) {
+            if (typeof self.after === 'function') { self.after(data) }
+            resolve(data);
           })
-      } else if (mode === 'http') {
-        console.log('sending POST:', self.path + route);
-        var http = new XMLHttpRequest();
-        http.open("POST", self.path + route, true);
-        http.setRequestHeader("Content-type", "application/json");
-        http.send(JSON.stringify({params: par, token: token}))
-        http.onreadystatechange = function () {
-          if (http.readyState == 4 && http.status == 200) {
-            console.log('recieved response');
-            resolve(JSON.parse(http.responseText))
-          }
+
+        } else if (mode === 'http') {
+
+          post(self.path+route, req).then(function(data){
+            if (typeof self.after === 'function') { self.after(data) }
+            resolve(data);
+          })
+
+        } else {
+          reject('Mode must be either http or socket')
         }
-      } else {
-        throw 'Mode must be either http or socket'
+      } catch (err) {
+        reject(err)
       }
     })
   }
-}
+};
 
 
 Resource.prototype.show      = function(id)    { return this.fetch({mode: 'socket', action: 'show', params: {id: id}, cache: true }) }
@@ -157,3 +140,12 @@ Resource.prototype.$all      = function()      { return this.fetch({route: '/', 
 Resource.prototype.$create   = function(pars)  { return this.fetch({route: '/create', mode: 'http', action: 'create', params: pars, cache: false }) }
 Resource.prototype.$destroy  = function(id)    { return this.fetch({route: '/'+id+'/destroy', mode: 'http', action: 'destroy', params: {id: id}, cache: false }) }
 Resource.prototype.$update   = function(pars)  { return this.fetch({route: '/'+pars.id+'/update', mode: 'http', action: 'update', params: pars, cache: false }) }
+
+
+if (typeof module === 'undefined') {
+  window.socket = socket;
+  window.Resource = Resource;
+} else {
+  module.exports.Resource = Resource;
+  module.exports.socket = socket;
+}
