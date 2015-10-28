@@ -1,3 +1,3 @@
-module.exports = function(DB){
+module.exports = function(db){
 
 };

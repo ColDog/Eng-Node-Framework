@@ -1,14 +1,23 @@
 'use strict';
 
-const App = require('./engine');
-require('./settings')(App);
+const App = require('engine');
+App.db  = require('engine/orm')({
+  client: 'sqlite3',
+  connection: {
+    filename: './test.sqlite'
+  }
+});
 
-App.middleware = [ App.router.match ];
+App.middleware = [
+  App.router.match
+];
 
-require('./migrations')(App.DB);
-require('./routes')(App.router);
+console.log('app.db.Model', App.db);
+
+require('./authorization')(App);
+
+require('./migrations')(App.db);
+require('./routes')(App);
+
 
 App.listen(3000);
-
-
-module.exports = App;
