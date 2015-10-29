@@ -12,11 +12,8 @@ App.middleware = [
   App.router.match
 ];
 
-console.log('app.db.Model', App.db);
-
-require('./authorization')(App);
-
-require('./migrations')(App.db);
+require('./application')(App);
+require('./db')(App);
 require('./routes')(App);
 
 
