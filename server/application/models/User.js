@@ -1,9 +1,12 @@
 'use strict';
 
-module.exports = function(App){
-  class User extends App.db.Model {
+module.exports = function(App) {
 
+  class User extends App.db.Model {
+    constructor(attrs) {
+      super(attrs)
+    }
   }
 
-  App.db.Models.User = User
+  return User
 };

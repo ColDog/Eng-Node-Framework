@@ -1,3 +1,5 @@
+'use strict';
+
 const fileTools = require('engine/file-tools');
 const path = require('path');
 

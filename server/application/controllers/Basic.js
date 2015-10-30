@@ -1,6 +1,7 @@
 module.exports = function(App) {
   App.controllers.Basic = {
     index: function(req, res, next){
+      throw 'meaningless error';
       next()
     }
   };

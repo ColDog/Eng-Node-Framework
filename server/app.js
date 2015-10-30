@@ -18,3 +18,5 @@ require('./routes')(App);
 
 
 App.listen(3000);
+
+module.exports = App;

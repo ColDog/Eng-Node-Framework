@@ -1,16 +1,20 @@
+'use strict';
 
 module.exports = function(App){
+  const User = require('../models/User')(App);
+
   App.controllers.User = {
     index: function(req, res, next){
-      this.body = App.db.Models.User.all();
+      this.body = User.all();
       next()
     },
     show: function(req, res, next) {
-      this.body = App.db.Models.User.find(this.params.id);
+      this.body = User.find(this.params.id)._toJson();
       next()
     },
     create: function(req, res, next) {
-      var rec = new App.db.Models.User(this.params);
+      var rec = new User(this.params);
+      console.log(this.params)
       if (rec.save()) {
         this.body = rec;
         next()
@@ -18,10 +22,9 @@ module.exports = function(App){
         this.error(400, rec._errors);
         next()
       }
-      next()
     },
     update: function(req, res, next){
-      var rec = App.db.Models.User.find(this.params.id);
+      var rec = User.find(this.params.id);
       if (rec.update(this.params)) {
         this.body = rec;
         next()
@@ -31,7 +34,7 @@ module.exports = function(App){
       }
     },
     destroy: function(req, res, next) {
-      var rec = App.db.Models.User.find(this.params.id);
+      var rec = User.find(this.params.id);
       if (rec.destroy()) {
         this.body = 'Destroyed successfully';
         next()
