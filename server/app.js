@@ -9,7 +9,8 @@ App.db  = require('engine/orm')({
 });
 
 App.middleware = [
-  App.router.match
+  App.router.match,
+  App.db.helpers.toJson
 ];
 
 require('./application')(App);

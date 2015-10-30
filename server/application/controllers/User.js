@@ -9,12 +9,11 @@ module.exports = function(App){
       next()
     },
     show: function(req, res, next) {
-      this.body = User.find(this.params.id)._toJson();
+      this.body = User.find( this.params.id );
       next()
     },
     create: function(req, res, next) {
-      var rec = new User(this.params);
-      console.log(this.params)
+      var rec = new User( safeParams(this.params) );
       if (rec.save()) {
         this.body = rec;
         next()
@@ -25,7 +24,7 @@ module.exports = function(App){
     },
     update: function(req, res, next){
       var rec = User.find(this.params.id);
-      if (rec.update(this.params)) {
+      if (rec.update( safeParams(this.params) )) {
         this.body = rec;
         next()
       } else {
@@ -44,6 +43,12 @@ module.exports = function(App){
       }
     }
   };
+
+  function safeParams(params) {
+    return App.db.helpers.safeParams(params, [
+      'name', 'email', 'password'
+    ])
+  }
 
   App.router.resource('/users', App.controllers.User)
 };

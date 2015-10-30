@@ -17,7 +17,8 @@
     "test": "echo \"Error: no test specified\" && exit 1",
     "start": "node app.js",
     "g-model": "node bin/g-model",
-    "g-resource": "node bin/g-resource"
+    "g-resource": "node bin/g-resource",
+    "g-controller": "node bin/g-controller"
   },
   "author": "",
   "license": "ISC"

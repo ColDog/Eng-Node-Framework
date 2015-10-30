@@ -8,18 +8,22 @@ var name = process.argv[2];
 var lowered = pluralize(name.toLowerCase());
 
 var controller = `
+'use strict';
+
 module.exports = function(App){
+  const ${name} = require('../models/${name}')(App);
+
   App.controllers.${name} = {
     index: function(req, res, next){
-      this.body = App.db.Models.${name}.all();
+      this.body = ${name}.all();
       next()
     },
     show: function(req, res, next) {
-      this.body = App.db.Models.${name}.find(this.params.id);
-      next()
+      this.body = ${name}.find( this.params.id );
+      next()\
     },
     create: function(req, res, next) {
-      var rec = new App.db.Models.${name}(this.params);
+      var rec = new ${name}( safeParams(this.params) );
       if (rec.save()) {
         this.body = rec;
         next()
@@ -27,11 +31,10 @@ module.exports = function(App){
         this.error(400, rec._errors);
         next()
       }
-      next()
     },
     update: function(req, res, next){
-      var rec = App.db.Models.${name}.find(this.params.id);
-      if (rec.update(this.params)) {
+      var rec = ${name}.find(this.params.id);
+      if (rec.update( safeParams(this.params) )) {
         this.body = rec;
         next()
       } else {
@@ -40,7 +43,7 @@ module.exports = function(App){
       }
     },
     destroy: function(req, res, next) {
-      var rec = App.db.Models.${name}.find(this.params.id);
+      var rec = ${name}.find(this.params.id);
       if (rec.destroy()) {
         this.body = 'Destroyed successfully';
         next()
@@ -51,7 +54,13 @@ module.exports = function(App){
     }
   };
 
-  App.router.resource('/${lowered}', App.controllers.${name})
+  function safeParams(params) {
+    return App.db.helpers.safeParams(params, [
+      'name', 'email', 'password' // todo more of your params
+    ])
+  }
+
+  App.router.resource('/${pluralize(name.toLowerCase())}', App.controllers.${name})
 };
 `;
 
